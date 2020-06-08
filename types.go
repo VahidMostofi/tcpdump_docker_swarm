@@ -3,13 +3,15 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
+	"os"
 )
 
 var FSBase = "/home/vahid/Desktop/temp1/tcpdumps"
 
 type DeploymentInfo struct {
-	DNS       map[string]string `json:"dns"`
-	NetworkID string            `json:"networkID"`
+	DNS              map[string]string `json:"dns"`
+	DefaultNetworkID string            `json:"default_networkID"`
+	IngressNetworkID string            `json:"ingress_networkID"`
 }
 
 func (d *DeploymentInfo) Save() {
@@ -17,13 +19,16 @@ func (d *DeploymentInfo) Save() {
 	if err != nil {
 		panic(err)
 	}
-
-	ioutil.WriteFile(FSBase+"/"+d.NetworkID[:12]+".json", b, 0644)
+	direcotry_name := d.DefaultNetworkID[:12]
+	if _, err := os.Stat(FSBase + "/" + direcotry_name); os.IsNotExist(err) {
+		os.Mkdir(FSBase+"/"+direcotry_name, os.ModeDir|0777)
+	}
+	ioutil.WriteFile(FSBase+"/"+direcotry_name+"/info.json", b, 0666)
 }
 
-func LoadDeploymentInfo(name string) *DeploymentInfo {
+func LoadDeploymentInfo() *DeploymentInfo {
 	d := DeploymentInfo{}
-	b, err := ioutil.ReadFile(FSBase + "/" + name + ".json")
+	b, err := ioutil.ReadFile(FSBase + "/info.json")
 	if err != nil {
 		panic(err)
 	}

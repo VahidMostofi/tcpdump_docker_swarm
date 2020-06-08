@@ -19,7 +19,7 @@ var (
 
 func Parse(_deploymentInfo *DeploymentInfo) {
 	deploymentInfo = _deploymentInfo
-	pcapFile := FSBase + "/" + deploymentInfo.NetworkID[:12]
+	pcapFile := FSBase + "/" + deploymentInfo.DefaultNetworkID[:12]
 
 	// Open file instead of device
 	handle, err = pcap.OpenOffline(pcapFile)
