@@ -75,6 +75,11 @@ func ExtractInformation() *DeploymentInfo {
 		DNS: make(map[string]string),
 	}
 
+	deploymenInfo.DNS["136.159.209.204"] = "136.159.209.204"
+	deploymenInfo.DNS["136.159.209.214"] = "136.159.209.214"
+	deploymenInfo.DNS["50.99.77.228"] = "50.99.77.228"
+	deploymenInfo.DNS["172.20.0.2"] = "172.20.0.2"
+
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	ctx := context.Background()
 	cli, err := client.NewClient("tcp://136.159.209.204:2375", "", nil, defaultHeaders)
