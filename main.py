@@ -37,19 +37,26 @@ for idx, row in df.iterrows():
         debugID2req[row['debugID']] = row['req']
 
 df['req'] = df.apply(lambda row: debugID2req[row['debugID']] if pd.isnull(row['req']) and row['debugID'] in debugID2req else row['req'], axis=1)
-
 # final analyse on data
 data = dict(tuple(df.groupby('req')))
+detailed_printed = set()
 for key, df in data.items():
     byDebugID = list(tuple(df.groupby('debugID')))
     if len(byDebugID) == 0 : continue
-    diffs = np.zeros((len(byDebugID), byDebugID[0][1].shape[0]-1))
+    # first or last requests my not be captured completely, so we choose the middle one as base (int(len()/2))
+    diffs = np.zeros((len(byDebugID), byDebugID[int(len(byDebugID)/2)][1].shape[0]-1))
     for i, tmp in enumerate(byDebugID):
         debugID = tmp[0]
         request = tmp[1]
         request = request.sort_values(by="ts")
-        if request.shape[0] != 10:
+        # print(key)
+        # print(request)
+        # print(request.shape[0])
+        if request.shape[0] != diffs.shape[-1] + 1:
             continue
+        if key not in detailed_printed:
+            detailed_printed.add(key)
+            print(request[['src','dst']])
         diffs[i] = np.diff(request.ts)
     diffs = np.percentile(diffs, 95, axis=0)
     print(key, len(byDebugID), np.round(diffs, 3))
