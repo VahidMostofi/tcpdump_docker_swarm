@@ -15,7 +15,7 @@ func main() {
 	if os.Args[1] == "extract" {
 		d := ExtractInformation()
 		d.Save()
-		fmt.Println("saved under name:", d.DefaultNetworkID[:12])
+		fmt.Println("saved under name:", d.Networks["overlay"].ShortID)
 	} else if os.Args[1] == "tcpdump" {
 		if len(os.Args) < 3 {
 			fmt.Println("you must provide a directory name and name of network")

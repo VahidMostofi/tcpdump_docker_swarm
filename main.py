@@ -43,7 +43,7 @@ data = dict(tuple(df.groupby('req')))
 for key, df in data.items():
     byDebugID = list(tuple(df.groupby('debugID')))
     if len(byDebugID) == 0 : continue
-    diffs = np.zeros((len(byDebugID), 9))
+    diffs = np.zeros((len(byDebugID), byDebugID[0][1].shape[0]-1))
     for i, tmp in enumerate(byDebugID):
         debugID = tmp[0]
         request = tmp[1]

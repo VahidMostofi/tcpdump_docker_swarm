@@ -9,9 +9,15 @@ import (
 var FSBase = "/home/vahid/Desktop/temp1/tcpdumps"
 
 type DeploymentInfo struct {
-	DNS              map[string]string `json:"dns"`
-	DefaultNetworkID string            `json:"default_networkID"`
-	IngressNetworkID string            `json:"ingress_networkID"`
+	DNS      map[string]string              `json:"dns"`
+	Networks map[string]*TCPDUMPNetworkInfo `json:"networks"`
+}
+
+type TCPDUMPNetworkInfo struct {
+	ID      string `json:"id"`
+	ShortID string `json:"short_id"`
+	Name    string `json:"name"`
+	FSName  string `json:"fs_name"`
 }
 
 func (d *DeploymentInfo) Save() {
@@ -19,7 +25,7 @@ func (d *DeploymentInfo) Save() {
 	if err != nil {
 		panic(err)
 	}
-	direcotry_name := d.DefaultNetworkID[:12]
+	direcotry_name := d.Networks["overlay"].ShortID
 	if _, err := os.Stat(FSBase + "/" + direcotry_name); os.IsNotExist(err) {
 		os.Mkdir(FSBase+"/"+direcotry_name, os.ModeDir|0777)
 	}

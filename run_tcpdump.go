@@ -2,7 +2,6 @@ package main
 
 import (
 	"archive/tar"
-	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -11,42 +10,14 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stdcopy"
 )
 
 var defaultHeaders = map[string]string{"User-Agent": "engine-api-cli-1.0"}
 
-func removeContainerByName(cli *client.Client, ctx context.Context, containerName string) error {
-	containerListFilters := filters.NewArgs()
-	containerListFilters.Add("name", containerName)
-	containers, err := cli.ContainerList(ctx, types.ContainerListOptions{All: true, Filters: containerListFilters})
-	if err != nil {
-		return err
-	}
-	if len(containers) == 0 {
-		return nil
-	}
-	for _, c := range containers {
-		cli.ContainerRemove(ctx, c.ID, types.ContainerRemoveOptions{Force: true})
-	}
-	return nil
-}
+func executeTCPDUMP(cli *client.Client, ctx context.Context, key string, network *TCPDUMPNetworkInfo, errc chan error, done chan string) {
 
-func executeTCPDUMP(cli *client.Client, ctx context.Context, key, networkID string, errc chan error, done chan string) {
-	var networkFileName string
-	if networkID == "default" {
-		networkFileName = "default"
-	} else {
-		networkFileName = "1-" + networkID[:10]
-	}
-
-	prettyNetworkID := networkID
-	if len(prettyNetworkID) > 12 {
-		prettyNetworkID = prettyNetworkID[:12]
-	}
 	containerName := "net_dbg_" + key
 	err := removeContainerByName(cli, ctx, containerName)
 	if err != nil {
@@ -60,7 +31,7 @@ func executeTCPDUMP(cli *client.Client, ctx context.Context, key, networkID stri
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          true,
-		Cmd:          []string{"nsenter", "--net=/var/run/docker/netns/" + networkFileName, "sh"},
+		Cmd:          []string{"nsenter", "--net=/var/run/docker/netns/" + network.FSName, "sh"},
 	}, &container.HostConfig{
 		Mounts: []mount.Mount{
 			{
@@ -85,10 +56,11 @@ func executeTCPDUMP(cli *client.Client, ctx context.Context, key, networkID stri
 		defer cli.ContainerStop(ctx, containerCreateBody.ID, nil)
 	}
 	fmt.Println("container started for " + key + ", starting tcpdump...")
-	IFConfigCommand := []string{"timeout", "60", "tcpdump", "-i", "any", "-vv", "-X", "-w", prettyNetworkID}
+	IFConfigCommand := []string{"timeout", "60", "tcpdump", "-i", "any", "-vv", "-X", "-w", network.ShortID}
 	resp, err := Exec(ctx, containerCreateBody.ID, IFConfigCommand)
 	if err != nil {
-		panic(err)
+		errc <- err
+		return
 	}
 	execRes, err := InspectExecResp(ctx, resp.ID)
 	if err != nil {
@@ -102,9 +74,10 @@ func executeTCPDUMP(cli *client.Client, ctx context.Context, key, networkID stri
 		fmt.Println(key + ": " + execRes.StdErr)
 	}
 
-	readCloser, _, err := cli.CopyFromContainer(ctx, containerCreateBody.ID, prettyNetworkID)
+	readCloser, _, err := cli.CopyFromContainer(ctx, containerCreateBody.ID, network.ShortID)
 	if err != nil {
-		panic(err)
+		errc <- err
+		return
 	}
 	defer readCloser.Close()
 
@@ -119,17 +92,17 @@ func executeTCPDUMP(cli *client.Client, ctx context.Context, key, networkID stri
 		errc <- err
 		return
 	}
-	err = ioutil.WriteFile(FSBase+"/"+prettyNetworkID+".pcap", b, 0777)
+	err = ioutil.WriteFile(FSBase+"/"+network.ShortID+".pcap", b, 0777)
 	if err != nil {
 		errc <- err
 		return
 	}
 	fmt.Println("finished copying")
-	done <- FSBase + "/" + prettyNetworkID + ".pcap"
+	done <- FSBase + "/" + network.ShortID + ".pcap"
 }
 
 func RunTCPDUMP(deploymentInfo *DeploymentInfo) {
-	networks := map[string]string{"default": deploymentInfo.DefaultNetworkID, "ingress": deploymentInfo.IngressNetworkID, "host": "default"}
+	networks := deploymentInfo.Networks
 
 	ctx := context.Background()
 	cli, err := client.NewClient("tcp://136.159.209.204:2375", "", nil, defaultHeaders)
@@ -139,9 +112,9 @@ func RunTCPDUMP(deploymentInfo *DeploymentInfo) {
 	errc := make(chan error)
 	done := make(chan string)
 	fmt.Println(networks)
-	for key, networkID := range networks {
-		fmt.Println("calling with ", networkID)
-		go executeTCPDUMP(cli, ctx, key, networkID, errc, done)
+	for key, network := range networks {
+		fmt.Println("calling with ", key)
+		go executeTCPDUMP(cli, ctx, key, network, errc, done)
 	}
 	count := 0
 	argsToMerge := []string{"-a"}
@@ -165,83 +138,4 @@ func RunTCPDUMP(deploymentInfo *DeploymentInfo) {
 		}
 	}
 
-}
-
-type ExecResult struct {
-	StdOut   string
-	StdErr   string
-	ExitCode int
-}
-
-func Exec(ctx context.Context, containerID string, command []string) (types.IDResponse, error) {
-	docker, err := client.NewClient("tcp://136.159.209.204:2375", "", nil, defaultHeaders)
-	if err != nil {
-		return types.IDResponse{}, err
-	}
-	docker.Close()
-
-	config := types.ExecConfig{
-		AttachStderr: true,
-		AttachStdout: true,
-		Tty:          true,
-		Cmd:          command,
-	}
-
-	return docker.ContainerExecCreate(ctx, containerID, config)
-}
-
-func InspectExecResp(ctx context.Context, id string) (ExecResult, error) {
-	var execResult ExecResult
-	docker, err := client.NewClient("tcp://136.159.209.204:2375", "", nil, defaultHeaders)
-	if err != nil {
-		return execResult, err
-	}
-	defer docker.Close()
-
-	resp, err := docker.ContainerExecAttach(ctx, id, types.ExecConfig{})
-	if err != nil {
-		return execResult, err
-	}
-
-	defer resp.Close()
-
-	// read the output
-	var outBuf, errBuf bytes.Buffer
-	outputDone := make(chan error)
-
-	go func() {
-		// StdCopy demultiplexes the stream into two buffers
-		_, err = stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
-		outputDone <- err
-	}()
-
-	select {
-	case err := <-outputDone:
-		if err != nil {
-			return execResult, err
-		}
-		break
-
-	case <-ctx.Done():
-		return execResult, ctx.Err()
-	}
-
-	stdout, err := ioutil.ReadAll(&outBuf)
-	if err != nil {
-		return execResult, err
-	}
-	stderr, err := ioutil.ReadAll(&errBuf)
-	if err != nil {
-		return execResult, err
-	}
-
-	res, err := docker.ContainerExecInspect(ctx, id)
-	if err != nil {
-		return execResult, err
-	}
-
-	execResult.ExitCode = res.ExitCode
-	execResult.StdOut = string(stdout)
-	execResult.StdErr = string(stderr)
-	return execResult, nil
 }
