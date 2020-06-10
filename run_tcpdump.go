@@ -16,7 +16,7 @@ import (
 
 var defaultHeaders = map[string]string{"User-Agent": "engine-api-cli-1.0"}
 
-func executeTCPDUMP(cli *client.Client, ctx context.Context, key string, network *TCPDUMPNetworkInfo, errc chan error, done chan string) {
+func executeTCPDUMP(cli *client.Client, ctx context.Context, name, key string, network *TCPDUMPNetworkInfo, errc chan error, done chan string) {
 
 	containerName := "net_dbg_" + key
 	err := removeContainerByName(cli, ctx, containerName)
@@ -92,18 +92,18 @@ func executeTCPDUMP(cli *client.Client, ctx context.Context, key string, network
 		errc <- err
 		return
 	}
-	err = ioutil.WriteFile(FSBase+"/"+network.ShortID+".pcap", b, 0777)
+	err = ioutil.WriteFile(FSBase+"/"+name+"/"+network.ShortID+".pcap", b, 0777)
 	if err != nil {
 		errc <- err
 		return
 	}
 	fmt.Println("finished copying")
-	done <- FSBase + "/" + network.ShortID + ".pcap"
+	done <- FSBase + "/" + name + "/" + network.ShortID + ".pcap"
 }
 
 func RunTCPDUMP(deploymentInfo *DeploymentInfo) {
 	networks := deploymentInfo.Networks
-
+	name := networks["overlay"].ShortID
 	ctx := context.Background()
 	cli, err := client.NewClient("tcp://136.159.209.204:2375", "", nil, defaultHeaders)
 	if err != nil {
@@ -114,7 +114,7 @@ func RunTCPDUMP(deploymentInfo *DeploymentInfo) {
 	fmt.Println(networks)
 	for key, network := range networks {
 		fmt.Println("calling with ", key)
-		go executeTCPDUMP(cli, ctx, key, network, errc, done)
+		go executeTCPDUMP(cli, ctx, name, key, network, errc, done)
 	}
 	count := 0
 	argsToMerge := []string{"-a"}
@@ -127,7 +127,7 @@ func RunTCPDUMP(deploymentInfo *DeploymentInfo) {
 			argsToMerge = append(argsToMerge, fileName)
 			if count == len(networks) {
 				time.Sleep(time.Second * 4)
-				argsToMerge = append(argsToMerge, []string{"-w", FSBase + "/merged.pcap"}...)
+				argsToMerge = append(argsToMerge, []string{"-w", FSBase + "/" + name + "/merged.pcap"}...)
 				cmd := exec.Command("mergecap", argsToMerge...)
 				err := cmd.Run()
 				if err != nil {

@@ -5,36 +5,44 @@ import (
 	"os"
 )
 
+func executeExtract(overlayNetworkName string) {
+	d := ExtractInformation(os.Args[2])
+	d.Save()
+	fmt.Println("saved under name:", d.Networks["overlay"].ShortID)
+}
+
+func executeTCPDUMPCMD(name string) {
+	d := LoadDeploymentInfo(name)
+	RunTCPDUMP(d)
+}
+
+func executeParse(name string) {
+	d := LoadDeploymentInfo(name)
+	Parse(d)
+}
+
 func main() {
-	if len(os.Args) < 2 {
+	if len(os.Args) < 3 {
 		fmt.Println("use one of these commands:")
-		fmt.Println("extract")
-		fmt.Println("tcpdump <dir_name> <extracted_information_name>")
+		fmt.Println("extract <network_name>")
+		fmt.Println("tcpdump <dir_name>")
 		fmt.Println("tcpdump <dir_name>")
 	}
 	if os.Args[1] == "extract" {
-		d := ExtractInformation()
-		d.Save()
-		fmt.Println("saved under name:", d.Networks["overlay"].ShortID)
+		executeExtract(os.Args[2])
 	} else if os.Args[1] == "tcpdump" {
-		if len(os.Args) < 3 {
-			fmt.Println("you must provide a directory name and name of network")
+		if len(os.Args) != 3 {
+			fmt.Println("you must provide a name")
 			fmt.Println("tcpdump <dir_name>")
 			return
 		}
-		FSBase += "/" + os.Args[2]
-		d := LoadDeploymentInfo()
-		RunTCPDUMP(d)
+		executeTCPDUMPCMD(os.Args[2])
 	} else if os.Args[1] == "parse" {
-		if len(os.Args) < 3 {
-			fmt.Println("you must provide name of network")
+		if len(os.Args) != 3 {
+			fmt.Println("you must provide a name")
+			fmt.Println("tcpdump <dir_name>")
+			return
 		}
-		FSBase += "/" + os.Args[2]
-		d := LoadDeploymentInfo()
-		Parse(d)
+		executeParse(os.Args[2])
 	}
-
-	// ExtractInformation()
-	// // Parse()
-	// // RunTCPDUMP()
 }

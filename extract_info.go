@@ -49,7 +49,7 @@ func extractDNSInfoFromNetwork(cli *client.Client, ctx context.Context, networkI
 	return nil
 }
 
-func ExtractInformation() *DeploymentInfo {
+func ExtractInformation(overlayNetworkName string) *DeploymentInfo {
 	deploymenInfo := DeploymentInfo{
 		DNS:      make(map[string]string),
 		Networks: make(map[string]*TCPDUMPNetworkInfo),
@@ -74,7 +74,7 @@ func ExtractInformation() *DeploymentInfo {
 		panic(err)
 	}
 
-	defaultNetwork, err := getNetwork(cli, ctx, "bookstore_default", "overlay")
+	defaultNetwork, err := getNetwork(cli, ctx, overlayNetworkName, "overlay")
 	if err != nil {
 		panic(err)
 	}

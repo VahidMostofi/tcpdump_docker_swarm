@@ -28,7 +28,7 @@ var (
 
 func Parse(_deploymentInfo *DeploymentInfo) {
 	deploymentInfo = _deploymentInfo
-	pcapFile := FSBase + "/merged.pcap"
+	pcapFile := FSBase + "/" + _deploymentInfo.Networks["overlay"].ShortID + "/merged.pcap"
 
 	// Open file instead of device
 	handle, err = pcap.OpenOffline(pcapFile)
@@ -51,8 +51,8 @@ func Parse(_deploymentInfo *DeploymentInfo) {
 		s += fmt.Sprintf("%.02f,%s,%s,%s,%s,%s\n", (float64(p.Timestamp) / 1000000.0), p.Source, p.Destination, p.ReqType, strings.ReplaceAll(p.TraceID, "\n", ""), p.DebugID)
 	}
 
-	ioutil.WriteFile(FSBase+"/http_packets.csv", []byte(s), 0777)
-	fmt.Println(FSBase + "/http_packets.csv")
+	ioutil.WriteFile(FSBase+_deploymentInfo.Networks["overlay"].ShortID+"/http_packets.csv", []byte(s), 0777)
+	fmt.Println(FSBase + _deploymentInfo.Networks["overlay"].ShortID + "/http_packets.csv")
 
 	// convert packets to reqType -> debug_id -> [packets]
 	// data := make(map[string]map[string][]*Packet, 3)

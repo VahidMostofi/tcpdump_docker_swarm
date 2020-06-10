@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-var FSBase = "/home/vahid/Desktop/temp1/tcpdumps"
+const FSBase = "/home/vahid/Desktop/temp1/tcpdumps"
 
 type DeploymentInfo struct {
 	DNS      map[string]string              `json:"dns"`
@@ -32,9 +32,9 @@ func (d *DeploymentInfo) Save() {
 	ioutil.WriteFile(FSBase+"/"+direcotry_name+"/info.json", b, 0666)
 }
 
-func LoadDeploymentInfo() *DeploymentInfo {
+func LoadDeploymentInfo(name string) *DeploymentInfo {
 	d := DeploymentInfo{}
-	b, err := ioutil.ReadFile(FSBase + "/info.json")
+	b, err := ioutil.ReadFile(FSBase + "/" + name + "/info.json")
 	if err != nil {
 		panic(err)
 	}
