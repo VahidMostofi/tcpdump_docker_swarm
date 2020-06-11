@@ -110,7 +110,7 @@ func parsePayload(payload []byte) (string, string, string) {
 
 	for _, row := range strings.Split(p, "\n") {
 
-		if strings.HasPrefix(row, "uber-trace-id:") {
+		if strings.HasPrefix(row, "uber-trace-id:") || strings.HasPrefix(row, "Uber-Trace-Id:") {
 			traceID = strings.Trim(strings.Join(strings.Split(row, ":")[1:], ":"), " \t\n\r ")
 		}
 
